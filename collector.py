@@ -517,8 +517,10 @@ class PolymarketCollector:
             for pattern in patterns:
                 match = re.search(pattern, title, flags=re.IGNORECASE)
                 if match:
-                    return safe_name(match.group(1))
-            return safe_name(slug.split("-")[0] if slug else title)
+                    name = safe_name(match.group(1))
+                    return "hyperliquid" if name == "hype" else name
+            fallback = safe_name(slug.split("-")[0] if slug else title)
+            return "hyperliquid" if fallback == "hype" else fallback
         if subject.group_by == "forex_pair_from_title":
             match = re.search(r"\b([A-Z]{3}/[A-Z]{3})\b", title)
             if match:

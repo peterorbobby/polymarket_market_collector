@@ -93,7 +93,8 @@ The default config also collects:
 - `indices_hit_price`: index hit-price events, grouped by index/ticker.
 - `commodities_high_price`: commodity hit/above events, grouped by commodity.
 - `forex_high_price`: FX hit/above events, grouped by currency pair.
-- `crypto_daily`, `crypto_weekly`, `crypto_monthly`: grouped by crypto asset.
+- `crypto_15m`, `crypto_hourly`, `crypto_4hour`, `crypto_daily`,
+  `crypto_weekly`, `crypto_monthly`: grouped by crypto asset.
 
 ## EC2 Deployment
 

@@ -170,6 +170,78 @@
       "group_by": "forex_pair_from_title"
     },
     {
+      "name": "crypto_15m",
+      "query": "crypto 15m",
+      "search_mode": "gamma_events",
+      "active": true,
+      "gamma_params": {
+        "tag_slug": "15m",
+        "active": "true",
+        "closed": "false",
+        "limit": "100"
+      },
+      "max_pages": 5,
+      "require_tag_slugs": [
+        "crypto",
+        "15m"
+      ],
+      "title_exclude_regex": "Election|ETF Flows|MicroStrategy|Bitcoin purchase|BTC purchase",
+      "limit_per_type": 100,
+      "collect_outcomes": [
+        "yes",
+        "no"
+      ],
+      "group_by": "crypto_asset_from_title"
+    },
+    {
+      "name": "crypto_hourly",
+      "query": "crypto hourly",
+      "search_mode": "gamma_events",
+      "active": true,
+      "gamma_params": {
+        "tag_slug": "1h",
+        "active": "true",
+        "closed": "false",
+        "limit": "100"
+      },
+      "max_pages": 5,
+      "require_tag_slugs": [
+        "crypto",
+        "1h"
+      ],
+      "title_exclude_regex": "Election|ETF Flows|MicroStrategy|Bitcoin purchase|BTC purchase",
+      "limit_per_type": 100,
+      "collect_outcomes": [
+        "yes",
+        "no"
+      ],
+      "group_by": "crypto_asset_from_title"
+    },
+    {
+      "name": "crypto_4hour",
+      "query": "crypto 4hour",
+      "search_mode": "gamma_events",
+      "active": true,
+      "gamma_params": {
+        "tag_slug": "4h",
+        "active": "true",
+        "closed": "false",
+        "limit": "100"
+      },
+      "max_pages": 5,
+      "require_tag_slugs": [
+        "crypto",
+        "4h"
+      ],
+      "title_exclude_regex": "Election|ETF Flows|MicroStrategy|Bitcoin purchase|BTC purchase",
+      "limit_per_type": 100,
+      "collect_outcomes": [
+        "yes",
+        "no"
+      ],
+      "group_by": "crypto_asset_from_title"
+    },
+    {
       "name": "crypto_daily",
       "query": "crypto daily",
       "search_mode": "gamma_events",
