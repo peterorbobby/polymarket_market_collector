@@ -377,7 +377,7 @@ class PolymarketCollector:
         try:
             resp = await client.get(f"{self.clob_base_url}/book", params={"token_id": token_id})
             if resp.status_code == 404:
-                return None, "404_no_orderbook"
+                return None, ""
             resp.raise_for_status()
             return extract_order_book_levels(resp.json()), ""
         except Exception as e:
@@ -405,8 +405,15 @@ class PolymarketCollector:
                 if not token_id:
                     continue
                 out[token_id] = (extract_order_book_levels(item), "")
-            for token_id in token_ids:
-                out.setdefault(token_id, (None, "missing_from_batch_response"))
+            missing = [token_id for token_id in token_ids if token_id not in out]
+            if missing:
+                semaphore = asyncio.Semaphore(self.max_concurrent_orderbook_requests)
+
+                async def fetch_missing(token_id: str) -> tuple[str, tuple[dict[str, Any] | None, str]]:
+                    async with semaphore:
+                        return token_id, await self.fetch_orderbook(client, token_id)
+
+                out.update(dict(await asyncio.gather(*(fetch_missing(token_id) for token_id in missing))))
             return out
         except Exception as e:
             print(f"[warn] batch /books failed for {len(token_ids)} tokens: {e}; falling back to /book", flush=True)
@@ -451,7 +458,7 @@ class PolymarketCollector:
                         "captured_at": utc_iso(),
                         **job,
                         "order_book": book,
-                        "source": "clob_public_books" if book is not None else "clob_fetch_error",
+                        "source": "clob_public_books" if book is not None else ("clob_no_orderbook" if not error else "clob_fetch_error"),
                         "error": error,
                     }
                 )
