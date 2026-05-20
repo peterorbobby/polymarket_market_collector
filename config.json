@@ -191,7 +191,8 @@
         "yes",
         "no"
       ],
-      "group_by": "crypto_asset_from_title"
+      "group_by": "crypto_asset_from_title",
+      "interval_seconds": 30
     },
     {
       "name": "crypto_hourly",
@@ -215,7 +216,8 @@
         "yes",
         "no"
       ],
-      "group_by": "crypto_asset_from_title"
+      "group_by": "crypto_asset_from_title",
+      "interval_seconds": 30
     },
     {
       "name": "crypto_4hour",
@@ -239,7 +241,8 @@
         "yes",
         "no"
       ],
-      "group_by": "crypto_asset_from_title"
+      "group_by": "crypto_asset_from_title",
+      "interval_seconds": 60
     },
     {
       "name": "crypto_daily",

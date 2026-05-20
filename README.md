@@ -96,6 +96,10 @@ The default config also collects:
 - `crypto_15m`, `crypto_hourly`, `crypto_4hour`, `crypto_daily`,
   `crypto_weekly`, `crypto_monthly`: grouped by crypto asset.
 
+Per-subject `interval_seconds` can override the global loop cadence. The
+default config samples `crypto_15m` and `crypto_hourly` every 30 seconds,
+`crypto_4hour` every 60 seconds, and the other series every 300 seconds.
+
 ## EC2 Deployment
 
 ```bash

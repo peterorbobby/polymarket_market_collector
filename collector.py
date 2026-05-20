@@ -155,6 +155,7 @@ class SubjectConfig:
     name: str
     query: str
     active: bool = True
+    interval_seconds: int = DEFAULT_INTERVAL_SECONDS
     search_mode: str = "public_search"
     gamma_params: tuple[tuple[str, str], ...] = ()
     max_pages: int = 1
@@ -178,6 +179,7 @@ class SubjectConfig:
             name=name,
             query=query,
             active=coerce_bool(data.get("active"), True),
+            interval_seconds=max(1, int(data.get("interval_seconds") or DEFAULT_INTERVAL_SECONDS)),
             search_mode=str(data.get("search_mode") or "public_search").strip().lower(),
             gamma_params=tuple(
                 (str(k), str(v))
@@ -654,15 +656,41 @@ class PolymarketCollector:
                 loop.add_signal_handler(sig, stop.set)
             except NotImplementedError:
                 pass
-        print(f"[start] interval={self.interval_seconds}s data_dir={self.data_dir}", flush=True)
+        subjects = [subject for subject in self.subjects if not selected_subjects or subject.name in selected_subjects]
+        if not subjects:
+            raise ValueError(f"no configured subjects match: {sorted(selected_subjects or [])}")
+        next_due = {subject.name: 0.0 for subject in subjects}
+        intervals = ", ".join(f"{subject.name}={subject.interval_seconds}s" for subject in subjects)
+        print(f"[start] intervals=[{intervals}] data_dir={self.data_dir}", flush=True)
         while not stop.is_set():
-            started = time.monotonic()
-            try:
-                await self.run_once(selected_subjects=selected_subjects)
-            except Exception as e:
-                print(f"[error] collection cycle failed: {e}", file=sys.stderr, flush=True)
-            elapsed = time.monotonic() - started
-            sleep_for = max(1.0, float(self.interval_seconds) - elapsed)
+            now = time.monotonic()
+            due_subjects = [subject for subject in subjects if now >= next_due.get(subject.name, 0.0)]
+            if due_subjects:
+                async with self.client() as client:
+                    summaries = []
+                    started_at = utc_iso()
+                    for subject in due_subjects:
+                        started = time.monotonic()
+                        try:
+                            print(f"[scan] {subject.name}: {subject.query}", flush=True)
+                            summary = await self.collect_subject(client, subject)
+                            summaries.append(summary)
+                            print(
+                                f"[done] {subject.name}: events={summary['events']} folders={summary['folders']} "
+                                f"markets={summary['markets']} orderbooks={summary['orderbooks']} "
+                                f"skips={summary['orderbook_skips']} errors={summary['orderbook_errors']}",
+                                flush=True,
+                            )
+                        except Exception as e:
+                            print(f"[error] {subject.name} collection failed: {e}", file=sys.stderr, flush=True)
+                        finally:
+                            next_due[subject.name] = started + subject.interval_seconds
+                    if summaries:
+                        state = {"started_at": started_at, "finished_at": utc_iso(), "summaries": summaries}
+                        write_json(self.state_dir / "run_state.json", state)
+
+            now = time.monotonic()
+            sleep_for = max(1.0, min(max(0.0, due_at - now) for due_at in next_due.values()))
             try:
                 await asyncio.wait_for(stop.wait(), timeout=sleep_for)
             except asyncio.TimeoutError:
