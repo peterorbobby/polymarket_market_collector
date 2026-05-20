@@ -21,10 +21,16 @@ Default output directory:
 
 ```text
 data/
-  elon_tweets/
-    latest_markets.json
-    markets/YYYY-MM-DD.jsonl
-    orderbooks/YYYY-MM-DD.jsonl
+  tweets_markets/
+    elon-musk/
+      latest_markets.json
+      markets/YYYY-MM-DD.jsonl
+      orderbooks/YYYY-MM-DD.jsonl
+  mrbeast/
+    will-mrbeast-hit-billion-views-by-may-31/
+      latest_markets.json
+      markets/YYYY-MM-DD.jsonl
+      orderbooks/YYYY-MM-DD.jsonl
   weather_temperature/
     london/
       latest_markets.json
@@ -78,6 +84,16 @@ Edit `config.json`:
 For Weather Temperature events, the default config uses the Gamma
 `daily-temperature` tag and writes each city under its own folder, e.g.
 `data/weather_temperature/london/`.
+
+The default config also collects:
+
+- `tweets_markets`: each personality/account in a separate folder, including Elon.
+- `mrbeast`: each active MrBeast event in its own folder.
+- `stocks_hit_price`: stock "What will ... hit ..." events, grouped by ticker.
+- `indices_hit_price`: index hit-price events, grouped by index/ticker.
+- `commodities_high_price`: commodity hit/above events, grouped by commodity.
+- `forex_high_price`: FX hit/above events, grouped by currency pair.
+- `crypto_daily`, `crypto_weekly`, `crypto_monthly`: grouped by crypto asset.
 
 ## EC2 Deployment
 

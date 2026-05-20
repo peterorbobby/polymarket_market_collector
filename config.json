@@ -9,13 +9,46 @@
   "skip_untradable_orderbooks": true,
   "subjects": [
     {
-      "name": "elon_tweets",
-      "query": "elon musk # tweets",
+      "name": "tweets_markets",
+      "query": "tweets markets",
+      "search_mode": "gamma_events",
       "active": true,
-      "include_terms": ["elon", "musk", "tweet"],
+      "gamma_params": {
+        "tag_slug": "tweets-markets",
+        "active": "true",
+        "closed": "false",
+        "limit": "100"
+      },
+      "max_pages": 3,
+      "include_terms": [],
       "exclude_terms": [],
-      "limit_per_type": 20,
-      "collect_outcomes": ["yes", "no"]
+      "limit_per_type": 100,
+      "collect_outcomes": [
+        "yes",
+        "no"
+      ],
+      "group_by": "persona_from_tweets_slug"
+    },
+    {
+      "name": "mrbeast",
+      "query": "mrbeast",
+      "search_mode": "gamma_events",
+      "active": true,
+      "gamma_params": {
+        "tag_slug": "mrbeast",
+        "active": "true",
+        "closed": "false",
+        "limit": "100"
+      },
+      "max_pages": 3,
+      "include_terms": [],
+      "exclude_terms": [],
+      "limit_per_type": 100,
+      "collect_outcomes": [
+        "yes",
+        "no"
+      ],
+      "group_by": "event_slug"
     },
     {
       "name": "weather_temperature",
@@ -29,11 +62,181 @@
         "limit": "100"
       },
       "max_pages": 5,
-      "include_terms": ["temperature"],
+      "include_terms": [
+        "temperature"
+      ],
       "exclude_terms": [],
       "limit_per_type": 100,
-      "collect_outcomes": ["yes", "no"],
+      "collect_outcomes": [
+        "yes",
+        "no"
+      ],
       "group_by": "city_from_temperature_title"
+    },
+    {
+      "name": "stocks_hit_price",
+      "query": "stocks hit price",
+      "search_mode": "gamma_events",
+      "active": true,
+      "gamma_params": {
+        "tag_slug": "stocks",
+        "active": "true",
+        "closed": "false",
+        "limit": "100"
+      },
+      "max_pages": 3,
+      "require_tag_slugs": [
+        "stocks"
+      ],
+      "title_include_regex": "^What\\s+will\\s+.+\\([^)]+\\)\\s+hit\\s+(?:in|Week of|by)",
+      "title_exclude_regex": "\\bclose\\b|\\bsettle\\b|Up or Down",
+      "limit_per_type": 100,
+      "collect_outcomes": [
+        "yes",
+        "no"
+      ],
+      "group_by": "asset_from_hit_title"
+    },
+    {
+      "name": "indices_hit_price",
+      "query": "indices hit price",
+      "search_mode": "gamma_events",
+      "active": true,
+      "gamma_params": {
+        "tag_slug": "indicies",
+        "active": "true",
+        "closed": "false",
+        "limit": "100"
+      },
+      "max_pages": 3,
+      "require_tag_slugs": [
+        "indicies"
+      ],
+      "title_include_regex": "^What\\s+(?:level\\s+)?will\\s+.+\\s+hit\\s+",
+      "title_exclude_regex": "\\bclose\\b|Up or Down",
+      "limit_per_type": 100,
+      "collect_outcomes": [
+        "yes",
+        "no"
+      ],
+      "group_by": "asset_from_hit_title"
+    },
+    {
+      "name": "commodities_high_price",
+      "query": "commodities hit above",
+      "search_mode": "gamma_events",
+      "active": true,
+      "gamma_params": {
+        "tag_slug": "commodities",
+        "active": "true",
+        "closed": "false",
+        "limit": "100"
+      },
+      "max_pages": 3,
+      "require_tag_slugs": [
+        "commodities"
+      ],
+      "title_include_regex": "^(?:What\\s+will\\s+.+\\s+hit|Will\\s+.+\\s+hit|.+\\s+(?:closes\\s+)?above\\s+_)",
+      "title_exclude_regex": "\\bsettle\\b|Up or Down| vs\\. ",
+      "limit_per_type": 100,
+      "collect_outcomes": [
+        "yes",
+        "no"
+      ],
+      "group_by": "asset_from_above_or_hit_title"
+    },
+    {
+      "name": "forex_high_price",
+      "query": "forex hit above",
+      "search_mode": "gamma_events",
+      "active": true,
+      "gamma_params": {
+        "tag_slug": "forex",
+        "active": "true",
+        "closed": "false",
+        "limit": "100"
+      },
+      "max_pages": 2,
+      "require_tag_slugs": [
+        "forex"
+      ],
+      "title_include_regex": "^(?:Will\\s+.+\\s+hit|.+\\s+above\\s+_)",
+      "title_exclude_regex": "Official USD Exchange Rate",
+      "limit_per_type": 100,
+      "collect_outcomes": [
+        "yes",
+        "no"
+      ],
+      "group_by": "forex_pair_from_title"
+    },
+    {
+      "name": "crypto_daily",
+      "query": "crypto daily",
+      "search_mode": "gamma_events",
+      "active": true,
+      "gamma_params": {
+        "tag_slug": "daily",
+        "active": "true",
+        "closed": "false",
+        "limit": "100"
+      },
+      "max_pages": 3,
+      "require_tag_slugs": [
+        "crypto"
+      ],
+      "title_exclude_regex": "Election|ETF Flows|MicroStrategy|Bitcoin purchase|BTC purchase",
+      "limit_per_type": 100,
+      "collect_outcomes": [
+        "yes",
+        "no"
+      ],
+      "group_by": "crypto_asset_from_title"
+    },
+    {
+      "name": "crypto_weekly",
+      "query": "crypto weekly",
+      "search_mode": "gamma_events",
+      "active": true,
+      "gamma_params": {
+        "tag_slug": "weekly",
+        "active": "true",
+        "closed": "false",
+        "limit": "100"
+      },
+      "max_pages": 3,
+      "require_tag_slugs": [
+        "crypto"
+      ],
+      "title_exclude_regex": "Election|ETF Flows|MicroStrategy|Bitcoin purchase|BTC purchase",
+      "limit_per_type": 100,
+      "collect_outcomes": [
+        "yes",
+        "no"
+      ],
+      "group_by": "crypto_asset_from_title"
+    },
+    {
+      "name": "crypto_monthly",
+      "query": "crypto monthly",
+      "search_mode": "gamma_events",
+      "active": true,
+      "gamma_params": {
+        "tag_slug": "monthly",
+        "active": "true",
+        "closed": "false",
+        "limit": "100"
+      },
+      "max_pages": 3,
+      "require_tag_slugs": [
+        "crypto"
+      ],
+      "title_exclude_regex": "Election|ETF Flows|MicroStrategy|Bitcoin purchase|BTC purchase",
+      "limit_per_type": 100,
+      "collect_outcomes": [
+        "yes",
+        "no"
+      ],
+      "group_by": "crypto_asset_from_title"
     }
   ]
 }

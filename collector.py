@@ -160,6 +160,9 @@ class SubjectConfig:
     max_pages: int = 1
     include_terms: tuple[str, ...] = ()
     exclude_terms: tuple[str, ...] = ()
+    require_tag_slugs: tuple[str, ...] = ()
+    title_include_regex: str = ""
+    title_exclude_regex: str = ""
     limit_per_type: int = 20
     collect_outcomes: tuple[str, ...] = ("yes",)
     group_by: str = ""
@@ -184,6 +187,9 @@ class SubjectConfig:
             max_pages=max(1, int(data.get("max_pages") or 1)),
             include_terms=tuple(x.lower() for x in coerce_str_list(data.get("include_terms"))),
             exclude_terms=tuple(x.lower() for x in coerce_str_list(data.get("exclude_terms"))),
+            require_tag_slugs=tuple(x.lower() for x in coerce_str_list(data.get("require_tag_slugs"))),
+            title_include_regex=str(data.get("title_include_regex") or ""),
+            title_exclude_regex=str(data.get("title_exclude_regex") or ""),
             limit_per_type=max(1, int(data.get("limit_per_type") or 20)),
             collect_outcomes=outcomes or ("yes",),
             group_by=str(data.get("group_by") or "").strip().lower(),
@@ -191,9 +197,21 @@ class SubjectConfig:
 
     def matches_event(self, event: dict[str, Any]) -> bool:
         haystack = f"{event.get('title') or ''} {event.get('slug') or ''} {event.get('ticker') or ''}".lower()
+        title = str(event.get("title") or "")
+        tag_slugs = {
+            str(tag.get("slug") or "").strip().lower()
+            for tag in list(event.get("tags") or [])
+            if isinstance(tag, dict)
+        }
         if self.include_terms and not all(term in haystack for term in self.include_terms):
             return False
         if self.exclude_terms and any(term in haystack for term in self.exclude_terms):
+            return False
+        if self.require_tag_slugs and not all(tag in tag_slugs for tag in self.require_tag_slugs):
+            return False
+        if self.title_include_regex and not re.search(self.title_include_regex, title, flags=re.IGNORECASE):
+            return False
+        if self.title_exclude_regex and re.search(self.title_exclude_regex, title, flags=re.IGNORECASE):
             return False
         if self.active:
             if event.get("closed") is True:
@@ -440,16 +458,68 @@ class PolymarketCollector:
         return rows
 
     def event_folder_name(self, subject: SubjectConfig, event: dict[str, Any]) -> str:
+        title = str(event.get("title") or "")
+        slug = str(event.get("slug") or "")
         if subject.group_by == "city_from_temperature_title":
-            title = str(event.get("title") or "")
             match = re.search(r"\b(?:highest|lowest)\s+temperature\s+in\s+(.+?)\s+on\s+", title, flags=re.IGNORECASE)
             if match:
                 return safe_name(match.group(1))
-            slug = str(event.get("slug") or "")
             match = re.search(r"^(?:highest|lowest)-temperature-in-(.+?)-on-", slug)
             if match:
                 return safe_name(match.group(1))
             return "unknown_city"
+        if subject.group_by == "persona_from_tweets_slug":
+            match = re.search(r"^(.+?)-of-(?:tweets|truth-social-posts|posts)-", slug, flags=re.IGNORECASE)
+            if match:
+                return safe_name(match.group(1))
+            match = re.search(r"^(.+?)\s+#\s+(?:tweets|posts|truth social posts)\b", title, flags=re.IGNORECASE)
+            if match:
+                return safe_name(match.group(1))
+            return "unknown_person"
+        if subject.group_by == "event_slug":
+            return safe_name(slug or title)
+        if subject.group_by == "asset_from_hit_title":
+            match = re.search(r"\(([^)]+)\)", title)
+            if match:
+                return safe_name(match.group(1))
+            match = re.search(r"(?:what\s+(?:price|level)?\s*will|will)\s+(.+?)\s+hit", title, flags=re.IGNORECASE)
+            if match:
+                return safe_name(match.group(1))
+            return safe_name(slug or title)
+        if subject.group_by == "asset_from_above_or_hit_title":
+            match = re.search(r"\(([^)]+)\)", title)
+            if match:
+                return safe_name(match.group(1))
+            match = re.search(r"^(?:what\s+(?:price|level)?\s*will|will)\s+(.+?)\s+hit", title, flags=re.IGNORECASE)
+            if match:
+                return safe_name(match.group(1))
+            match = re.search(r"^(.+?)\s+(?:closes\s+)?above\b", title, flags=re.IGNORECASE)
+            if match:
+                return safe_name(match.group(1))
+            return safe_name(slug or title)
+        if subject.group_by == "crypto_asset_from_title":
+            patterns = [
+                r"^what\s+price\s+will\s+(.+?)\s+hit\b",
+                r"^what\s+will\s+the\s+(.+?)\s+implied\b",
+                r"^will\s+(.+?)\s+hit\b",
+                r"^(.+?)\s+above\b",
+                r"^(.+?)\s+price\s+on\b",
+                r"^(.+?)\s+up\s+or\s+down\b",
+                r"^(.+?)\s+etf\s+flows\b",
+            ]
+            for pattern in patterns:
+                match = re.search(pattern, title, flags=re.IGNORECASE)
+                if match:
+                    return safe_name(match.group(1))
+            return safe_name(slug.split("-")[0] if slug else title)
+        if subject.group_by == "forex_pair_from_title":
+            match = re.search(r"\b([A-Z]{3}/[A-Z]{3})\b", title)
+            if match:
+                return safe_name(match.group(1))
+            match = re.search(r"\b([A-Z]{6})\b", title)
+            if match:
+                return safe_name(match.group(1))
+            return safe_name(slug or title)
         return ""
 
     def subject_output_dir(self, subject: SubjectConfig, folder_name: str) -> Path:
