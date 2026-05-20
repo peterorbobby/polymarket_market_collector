@@ -1,0 +1,20 @@
+{
+  "interval_seconds": 300,
+  "data_dir": "data",
+  "clob_base_url": "https://clob.polymarket.com",
+  "gamma_base_url": "https://gamma-api.polymarket.com",
+  "request_timeout_seconds": 20,
+  "max_concurrent_orderbook_requests": 8,
+  "skip_untradable_orderbooks": true,
+  "subjects": [
+    {
+      "name": "elon_tweets",
+      "query": "elon musk # tweets",
+      "active": true,
+      "include_terms": ["elon", "musk", "tweet"],
+      "exclude_terms": [],
+      "limit_per_type": 20,
+      "collect_outcomes": ["yes"]
+    }
+  ]
+}
