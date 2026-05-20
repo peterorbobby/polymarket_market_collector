@@ -5,6 +5,7 @@
   "gamma_base_url": "https://gamma-api.polymarket.com",
   "request_timeout_seconds": 20,
   "max_concurrent_orderbook_requests": 8,
+  "orderbook_batch_size": 200,
   "skip_untradable_orderbooks": true,
   "subjects": [
     {
@@ -14,7 +15,25 @@
       "include_terms": ["elon", "musk", "tweet"],
       "exclude_terms": [],
       "limit_per_type": 20,
-      "collect_outcomes": ["yes"]
+      "collect_outcomes": ["yes", "no"]
+    },
+    {
+      "name": "weather_temperature",
+      "query": "daily temperature",
+      "search_mode": "gamma_events",
+      "active": true,
+      "gamma_params": {
+        "tag_slug": "daily-temperature",
+        "active": "true",
+        "closed": "false",
+        "limit": "100"
+      },
+      "max_pages": 5,
+      "include_terms": ["temperature"],
+      "exclude_terms": [],
+      "limit_per_type": 100,
+      "collect_outcomes": ["yes", "no"],
+      "group_by": "city_from_temperature_title"
     }
   ]
 }

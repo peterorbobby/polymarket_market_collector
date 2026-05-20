@@ -5,6 +5,7 @@ import argparse
 import asyncio
 import json
 import os
+import re
 import signal
 import sys
 import time
@@ -154,10 +155,14 @@ class SubjectConfig:
     name: str
     query: str
     active: bool = True
+    search_mode: str = "public_search"
+    gamma_params: tuple[tuple[str, str], ...] = ()
+    max_pages: int = 1
     include_terms: tuple[str, ...] = ()
     exclude_terms: tuple[str, ...] = ()
     limit_per_type: int = 20
     collect_outcomes: tuple[str, ...] = ("yes",)
+    group_by: str = ""
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "SubjectConfig":
@@ -170,10 +175,18 @@ class SubjectConfig:
             name=name,
             query=query,
             active=coerce_bool(data.get("active"), True),
+            search_mode=str(data.get("search_mode") or "public_search").strip().lower(),
+            gamma_params=tuple(
+                (str(k), str(v))
+                for k, v in dict(data.get("gamma_params") or {}).items()
+                if v is not None
+            ),
+            max_pages=max(1, int(data.get("max_pages") or 1)),
             include_terms=tuple(x.lower() for x in coerce_str_list(data.get("include_terms"))),
             exclude_terms=tuple(x.lower() for x in coerce_str_list(data.get("exclude_terms"))),
             limit_per_type=max(1, int(data.get("limit_per_type") or 20)),
             collect_outcomes=outcomes or ("yes",),
+            group_by=str(data.get("group_by") or "").strip().lower(),
         )
 
     def matches_event(self, event: dict[str, Any]) -> bool:
@@ -198,6 +211,7 @@ class PolymarketCollector:
         timeout_seconds = float(config.get("request_timeout_seconds") or DEFAULT_TIMEOUT_SECONDS)
         self.timeout = httpx.Timeout(timeout_seconds)
         self.max_concurrent_orderbook_requests = max(1, int(config.get("max_concurrent_orderbook_requests") or 8))
+        self.orderbook_batch_size = max(1, int(config.get("orderbook_batch_size") or 200))
         self.skip_untradable_orderbooks = coerce_bool(config.get("skip_untradable_orderbooks"), True)
         self.data_dir = Path(data_dir_override or os.environ.get("POLY_COLLECTOR_DATA_DIR") or config.get("data_dir") or DEFAULT_DATA_DIR)
         self.state_dir = Path(config.get("state_dir") or "state")
@@ -225,22 +239,38 @@ class PolymarketCollector:
         return [event for event in events if isinstance(event, dict)]
 
     async def gamma_search_events(self, client: httpx.AsyncClient, subject: SubjectConfig) -> list[dict[str, Any]]:
-        params = {"query": subject.query}
+        base_params = dict(subject.gamma_params)
+        if "query" not in base_params and subject.query:
+            base_params["query"] = subject.query
         if subject.active:
-            params.update({"active": "true", "closed": "false"})
-        resp = await client.get(f"{self.gamma_base_url}/events", params=params)
-        resp.raise_for_status()
-        data = resp.json()
-        if isinstance(data, dict):
-            return [] if data.get("error") else [data]
-        return [event for event in data if isinstance(event, dict)]
+            base_params.setdefault("active", "true")
+            base_params.setdefault("closed", "false")
+        limit = int(base_params.get("limit") or subject.limit_per_type)
+        base_params["limit"] = str(limit)
+
+        events: list[dict[str, Any]] = []
+        for page in range(subject.max_pages):
+            params = dict(base_params)
+            params["offset"] = str(page * limit)
+            resp = await client.get(f"{self.gamma_base_url}/events", params=params)
+            resp.raise_for_status()
+            data = resp.json()
+            if isinstance(data, dict):
+                page_events = [] if data.get("error") else [data]
+            else:
+                page_events = [event for event in data if isinstance(event, dict)]
+            events.extend(page_events)
+            if len(page_events) < limit:
+                break
+        return events
 
     async def scan_subject_events(self, client: httpx.AsyncClient, subject: SubjectConfig) -> list[dict[str, Any]]:
         events: list[dict[str, Any]] = []
-        try:
-            events = await self.public_search_events(client, subject)
-        except Exception as e:
-            print(f"[warn] {subject.name}: public-search failed: {e}", flush=True)
+        if subject.search_mode in {"public_search", "public-search", "search"}:
+            try:
+                events = await self.public_search_events(client, subject)
+            except Exception as e:
+                print(f"[warn] {subject.name}: public-search failed: {e}", flush=True)
         if not events:
             try:
                 events = await self.gamma_search_events(client, subject)
@@ -335,6 +365,97 @@ class PolymarketCollector:
         except Exception as e:
             return None, str(e)
 
+    async def fetch_orderbooks_batch(
+        self,
+        client: httpx.AsyncClient,
+        token_ids: list[str],
+    ) -> dict[str, tuple[dict[str, Any] | None, str]]:
+        if not token_ids:
+            return {}
+        try:
+            payload = [{"token_id": token_id} for token_id in token_ids]
+            resp = await client.post(f"{self.clob_base_url}/books", json=payload)
+            resp.raise_for_status()
+            data = resp.json()
+            if not isinstance(data, list):
+                raise ValueError(f"unexpected /books response: {data!r}")
+            out: dict[str, tuple[dict[str, Any] | None, str]] = {}
+            for item in data:
+                if not isinstance(item, dict):
+                    continue
+                token_id = str(item.get("asset_id") or item.get("token_id") or item.get("asset") or "")
+                if not token_id:
+                    continue
+                out[token_id] = (extract_order_book_levels(item), "")
+            for token_id in token_ids:
+                out.setdefault(token_id, (None, "missing_from_batch_response"))
+            return out
+        except Exception as e:
+            print(f"[warn] batch /books failed for {len(token_ids)} tokens: {e}; falling back to /book", flush=True)
+            semaphore = asyncio.Semaphore(self.max_concurrent_orderbook_requests)
+
+            async def fetch_one(token_id: str) -> tuple[str, tuple[dict[str, Any] | None, str]]:
+                async with semaphore:
+                    return token_id, await self.fetch_orderbook(client, token_id)
+
+            pairs = await asyncio.gather(*(fetch_one(token_id) for token_id in token_ids))
+            return dict(pairs)
+
+    async def fetch_orderbooks_for_jobs(
+        self,
+        client: httpx.AsyncClient,
+        jobs: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = []
+        pending: list[dict[str, Any]] = []
+        for job in jobs:
+            if job.get("skip_reason"):
+                rows.append(
+                    {
+                        "captured_at": utc_iso(),
+                        **job,
+                        "order_book": None,
+                        "source": "market_not_orderbook_eligible",
+                        "error": "",
+                    }
+                )
+            else:
+                pending.append(job)
+
+        for start in range(0, len(pending), self.orderbook_batch_size):
+            chunk = pending[start : start + self.orderbook_batch_size]
+            token_ids = [str(job["token_id"]) for job in chunk]
+            batch_result = await self.fetch_orderbooks_batch(client, token_ids)
+            for job in chunk:
+                book, error = batch_result.get(str(job["token_id"]), (None, "missing_from_batch_response"))
+                rows.append(
+                    {
+                        "captured_at": utc_iso(),
+                        **job,
+                        "order_book": book,
+                        "source": "clob_public_books" if book is not None else "clob_fetch_error",
+                        "error": error,
+                    }
+                )
+        return rows
+
+    def event_folder_name(self, subject: SubjectConfig, event: dict[str, Any]) -> str:
+        if subject.group_by == "city_from_temperature_title":
+            title = str(event.get("title") or "")
+            match = re.search(r"\b(?:highest|lowest)\s+temperature\s+in\s+(.+?)\s+on\s+", title, flags=re.IGNORECASE)
+            if match:
+                return safe_name(match.group(1))
+            slug = str(event.get("slug") or "")
+            match = re.search(r"^(?:highest|lowest)-temperature-in-(.+?)-on-", slug)
+            if match:
+                return safe_name(match.group(1))
+            return "unknown_city"
+        return ""
+
+    def subject_output_dir(self, subject: SubjectConfig, folder_name: str) -> Path:
+        root = self.data_dir / subject.name
+        return root / folder_name if folder_name else root
+
     def market_rows(self, captured_at: str, event: dict[str, Any]) -> list[dict[str, Any]]:
         rows: list[dict[str, Any]] = []
         base = {k: event.get(k) for k in ("subject", "id", "ticker", "slug", "title", "start_date", "end_date", "active", "closed")}
@@ -352,69 +473,76 @@ class PolymarketCollector:
         captured_at = utc_iso()
         raw_events = await self.scan_subject_events(client, subject)
         events = [self.normalize_event(subject, event) for event in raw_events]
-        subject_dir = self.data_dir / subject.name
         day = utc_day()
-        market_row_count = append_jsonl(subject_dir / "markets" / f"{day}.jsonl", [row for event in events for row in self.market_rows(captured_at, event)])
-        write_json(subject_dir / "latest_markets.json", {"captured_at": captured_at, "subject": subject.name, "events": events})
-
-        orderbook_jobs: list[dict[str, Any]] = []
+        grouped_events: dict[str, list[dict[str, Any]]] = {}
         for event in events:
-            event_ref = {
-                "subject": subject.name,
-                "event_id": event.get("id"),
-                "event_slug": event.get("slug"),
-                "event_title": event.get("title"),
-                "event_start_date": event.get("start_date"),
-                "event_end_date": event.get("end_date"),
-            }
-            for market in event.get("markets") or []:
-                skip_reason = self.orderbook_skip_reason(market)
-                for outcome_name, token_id in self.selected_tokens(subject, market):
-                    orderbook_jobs.append(
-                        {
-                            **event_ref,
-                            "market_id": market.get("id"),
-                            "market_slug": market.get("slug"),
-                            "bucket_label": market.get("group_item_title"),
-                            "question": market.get("question"),
-                            "outcome": outcome_name,
-                            "token_id": token_id,
-                            "gamma_price": (market.get("outcome_prices") or [None])[0] if outcome_name == "yes" else ((market.get("outcome_prices") or [None, None])[1] if len(market.get("outcome_prices") or []) > 1 else None),
-                            "skip_reason": skip_reason,
-                        }
-                    )
+            grouped_events.setdefault(self.event_folder_name(subject, event), []).append(event)
 
-        semaphore = asyncio.Semaphore(self.max_concurrent_orderbook_requests)
+        market_row_count = 0
+        for folder_name, folder_events in grouped_events.items():
+            subject_dir = self.subject_output_dir(subject, folder_name)
+            market_row_count += append_jsonl(
+                subject_dir / "markets" / f"{day}.jsonl",
+                [row for event in folder_events for row in self.market_rows(captured_at, event)],
+            )
+            write_json(
+                subject_dir / "latest_markets.json",
+                {
+                    "captured_at": captured_at,
+                    "subject": subject.name,
+                    "folder": folder_name,
+                    "events": folder_events,
+                },
+            )
 
-        async def collect_orderbook_row(job: dict[str, Any]) -> dict[str, Any]:
-            if job.get("skip_reason"):
-                return {
-                    "captured_at": utc_iso(),
-                    **job,
-                    "order_book": None,
-                    "source": "market_not_orderbook_eligible",
-                    "error": "",
+        orderbook_jobs_by_folder: dict[str, list[dict[str, Any]]] = {}
+        for folder_name, folder_events in grouped_events.items():
+            orderbook_jobs_by_folder.setdefault(folder_name, [])
+            for event in folder_events:
+                event_ref = {
+                    "subject": subject.name,
+                    "folder": folder_name,
+                    "event_id": event.get("id"),
+                    "event_slug": event.get("slug"),
+                    "event_title": event.get("title"),
+                    "event_start_date": event.get("start_date"),
+                    "event_end_date": event.get("end_date"),
                 }
-            async with semaphore:
-                book, error = await self.fetch_orderbook(client, str(job["token_id"]))
-            return {
-                "captured_at": utc_iso(),
-                **job,
-                "order_book": book,
-                "source": "clob_public_book" if book is not None else "clob_fetch_error",
-                "error": error,
-            }
+                for market in event.get("markets") or []:
+                    skip_reason = self.orderbook_skip_reason(market)
+                    for outcome_name, token_id in self.selected_tokens(subject, market):
+                        orderbook_jobs_by_folder[folder_name].append(
+                            {
+                                **event_ref,
+                                "market_id": market.get("id"),
+                                "market_slug": market.get("slug"),
+                                "bucket_label": market.get("group_item_title"),
+                                "question": market.get("question"),
+                                "outcome": outcome_name,
+                                "token_id": token_id,
+                                "gamma_price": (market.get("outcome_prices") or [None])[0] if outcome_name == "yes" else ((market.get("outcome_prices") or [None, None])[1] if len(market.get("outcome_prices") or []) > 1 else None),
+                                "skip_reason": skip_reason,
+                            }
+                        )
 
-        orderbook_rows = await asyncio.gather(*(collect_orderbook_row(job) for job in orderbook_jobs))
-        orderbook_row_count = append_jsonl(subject_dir / "orderbooks" / f"{day}.jsonl", orderbook_rows)
+        orderbook_row_count = 0
+        orderbook_error_count = 0
+        orderbook_skip_count = 0
+        for folder_name, orderbook_jobs in orderbook_jobs_by_folder.items():
+            subject_dir = self.subject_output_dir(subject, folder_name)
+            orderbook_rows = await self.fetch_orderbooks_for_jobs(client, orderbook_jobs)
+            orderbook_row_count += append_jsonl(subject_dir / "orderbooks" / f"{day}.jsonl", orderbook_rows)
+            orderbook_error_count += sum(1 for row in orderbook_rows if row.get("error"))
+            orderbook_skip_count += sum(1 for row in orderbook_rows if row.get("skip_reason"))
         return {
             "subject": subject.name,
             "captured_at": captured_at,
             "events": len(events),
+            "folders": len(grouped_events),
             "markets": market_row_count,
             "orderbooks": orderbook_row_count,
-            "orderbook_errors": sum(1 for row in orderbook_rows if row.get("error")),
-            "orderbook_skips": sum(1 for row in orderbook_rows if row.get("skip_reason")),
+            "orderbook_errors": orderbook_error_count,
+            "orderbook_skips": orderbook_skip_count,
         }
 
     async def run_once(self, selected_subjects: set[str] | None = None) -> list[dict[str, Any]]:
@@ -429,7 +557,8 @@ class PolymarketCollector:
                 summaries.append(await self.collect_subject(client, subject))
                 summary = summaries[-1]
                 print(
-                    f"[done] {subject.name}: events={summary['events']} markets={summary['markets']} "
+                    f"[done] {subject.name}: events={summary['events']} folders={summary['folders']} "
+                    f"markets={summary['markets']} "
                     f"orderbooks={summary['orderbooks']} skips={summary['orderbook_skips']} "
                     f"errors={summary['orderbook_errors']}",
                     flush=True,

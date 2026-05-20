@@ -25,6 +25,11 @@ data/
     latest_markets.json
     markets/YYYY-MM-DD.jsonl
     orderbooks/YYYY-MM-DD.jsonl
+  weather_temperature/
+    london/
+      latest_markets.json
+      markets/YYYY-MM-DD.jsonl
+      orderbooks/YYYY-MM-DD.jsonl
 state/
   run_state.json
 ```
@@ -69,6 +74,10 @@ Edit `config.json`:
 - `["yes"]`: only first CLOB token id, matching the existing trading pipeline.
 - `["yes", "no"]`: first and second token ids.
 - `["all"]`: all token ids returned by Gamma.
+
+For Weather Temperature events, the default config uses the Gamma
+`daily-temperature` tag and writes each city under its own folder, e.g.
+`data/weather_temperature/london/`.
 
 ## EC2 Deployment
 
