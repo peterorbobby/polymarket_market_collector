@@ -626,6 +626,51 @@ class PolymarketCollector:
             "orderbook_skips": orderbook_skip_count,
         }
 
+    def cleanup_old_data(self) -> None:
+        try:
+            now_dt = utc_now()
+            current_date = now_dt.date()
+            deleted_count = 0
+            print(f"[cleanup] Starting data cleanup in {self.data_dir}...", flush=True)
+            
+            # Search for all jsonl files in the data directory
+            for path in self.data_dir.rglob("*.jsonl"):
+                if not path.is_file():
+                    continue
+                # Check if file name matches YYYY-MM-DD.jsonl
+                match = re.match(r"^(\d{4})-(\d{2})-(\d{2})\.jsonl$", path.name)
+                if not match:
+                    continue
+                
+                try:
+                    file_date = datetime(int(match.group(1)), int(match.group(2)), int(match.group(3)), tzinfo=timezone.utc).date()
+                    age_days = (current_date - file_date).days
+                    if age_days > 3:
+                        path.unlink()
+                        deleted_count += 1
+                        print(f"[cleanup] Deleted old data file: {path.relative_to(self.data_dir)} ({age_days} days old)", flush=True)
+                except Exception as e:
+                    print(f"[warn] Failed to process or delete {path}: {e}", flush=True)
+                    
+            # Bottom-up clean up of empty directories
+            for dirpath, dirnames, filenames in os.walk(self.data_dir, topdown=False):
+                if Path(dirpath) == self.data_dir:
+                    continue
+                try:
+                    p = Path(dirpath)
+                    if p.is_dir() and not any(p.iterdir()):
+                        p.rmdir()
+                        print(f"[cleanup] Removed empty directory: {p.relative_to(self.data_dir)}", flush=True)
+                except Exception:
+                    pass
+
+            if deleted_count > 0:
+                print(f"[cleanup] Finished cleanup. Deleted {deleted_count} file(s).", flush=True)
+            else:
+                print("[cleanup] Finished cleanup. No files deleted.", flush=True)
+        except Exception as e:
+            print(f"[error] Data cleanup failed: {e}", file=sys.stderr, flush=True)
+
     async def run_once(self, selected_subjects: set[str] | None = None) -> list[dict[str, Any]]:
         started_at = utc_iso()
         subjects = [subject for subject in self.subjects if not selected_subjects or subject.name in selected_subjects]
@@ -644,6 +689,7 @@ class PolymarketCollector:
                     f"errors={summary['orderbook_errors']}",
                     flush=True,
                 )
+        self.cleanup_old_data()
         state = {"started_at": started_at, "finished_at": utc_iso(), "summaries": summaries}
         write_json(self.state_dir / "run_state.json", state)
         return summaries
@@ -686,6 +732,7 @@ class PolymarketCollector:
                         finally:
                             next_due[subject.name] = started + subject.interval_seconds
                     if summaries:
+                        self.cleanup_old_data()
                         state = {"started_at": started_at, "finished_at": utc_iso(), "summaries": summaries}
                         write_json(self.state_dir / "run_state.json", state)
 
