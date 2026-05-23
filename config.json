@@ -312,6 +312,342 @@
         "no"
       ],
       "group_by": "crypto_asset_from_title"
+    },
+    {
+      "name": "sports_football",
+      "query": "football",
+      "search_mode": "gamma_events",
+      "active": true,
+      "gamma_params": {
+        "tag_slug": "football",
+        "active": "true",
+        "closed": "false",
+        "limit": "100"
+      },
+      "max_pages": 3,
+      "include_terms": [],
+      "exclude_terms": [],
+      "limit_per_type": 100,
+      "collect_outcomes": [
+        "yes",
+        "no"
+      ],
+      "group_by": "event_slug"
+    },
+    {
+      "name": "sports_basketball",
+      "query": "basketball",
+      "search_mode": "gamma_events",
+      "active": true,
+      "gamma_params": {
+        "tag_slug": "basketball",
+        "active": "true",
+        "closed": "false",
+        "limit": "100"
+      },
+      "max_pages": 3,
+      "include_terms": [],
+      "exclude_terms": [],
+      "limit_per_type": 100,
+      "collect_outcomes": [
+        "yes",
+        "no"
+      ],
+      "group_by": "event_slug"
+    },
+    {
+      "name": "sports_hockey",
+      "query": "hockey",
+      "search_mode": "gamma_events",
+      "active": true,
+      "gamma_params": {
+        "tag_slug": "hockey",
+        "active": "true",
+        "closed": "false",
+        "limit": "100"
+      },
+      "max_pages": 3,
+      "include_terms": [],
+      "exclude_terms": [],
+      "limit_per_type": 100,
+      "collect_outcomes": [
+        "yes",
+        "no"
+      ],
+      "group_by": "event_slug"
+    },
+    {
+      "name": "sports_baseball",
+      "query": "baseball",
+      "search_mode": "gamma_events",
+      "active": true,
+      "gamma_params": {
+        "tag_slug": "baseball",
+        "active": "true",
+        "closed": "false",
+        "limit": "100"
+      },
+      "max_pages": 3,
+      "include_terms": [],
+      "exclude_terms": [],
+      "limit_per_type": 100,
+      "collect_outcomes": [
+        "yes",
+        "no"
+      ],
+      "group_by": "event_slug"
+    },
+    {
+      "name": "sports_soccer",
+      "query": "soccer",
+      "search_mode": "gamma_events",
+      "active": true,
+      "gamma_params": {
+        "tag_slug": "soccer",
+        "active": "true",
+        "closed": "false",
+        "limit": "100"
+      },
+      "max_pages": 3,
+      "include_terms": [],
+      "exclude_terms": [],
+      "limit_per_type": 100,
+      "collect_outcomes": [
+        "yes",
+        "no"
+      ],
+      "group_by": "event_slug"
+    },
+    {
+      "name": "sports_tennis",
+      "query": "tennis",
+      "search_mode": "gamma_events",
+      "active": true,
+      "gamma_params": {
+        "tag_slug": "tennis",
+        "active": "true",
+        "closed": "false",
+        "limit": "100"
+      },
+      "max_pages": 3,
+      "include_terms": [],
+      "exclude_terms": [],
+      "limit_per_type": 100,
+      "collect_outcomes": [
+        "yes",
+        "no"
+      ],
+      "group_by": "event_slug"
+    },
+    {
+      "name": "sports_cricket",
+      "query": "cricket",
+      "search_mode": "gamma_events",
+      "active": true,
+      "gamma_params": {
+        "tag_slug": "cricket",
+        "active": "true",
+        "closed": "false",
+        "limit": "100"
+      },
+      "max_pages": 3,
+      "include_terms": [],
+      "exclude_terms": [],
+      "limit_per_type": 100,
+      "collect_outcomes": [
+        "yes",
+        "no"
+      ],
+      "group_by": "event_slug"
+    },
+    {
+      "name": "sports_mma",
+      "query": "mma",
+      "search_mode": "gamma_events",
+      "active": true,
+      "gamma_params": {
+        "tag_slug": "mma",
+        "active": "true",
+        "closed": "false",
+        "limit": "100"
+      },
+      "max_pages": 3,
+      "include_terms": [],
+      "exclude_terms": [],
+      "limit_per_type": 100,
+      "collect_outcomes": [
+        "yes",
+        "no"
+      ],
+      "group_by": "event_slug"
+    },
+    {
+      "name": "sports_f1",
+      "query": "f1",
+      "search_mode": "gamma_events",
+      "active": true,
+      "gamma_params": {
+        "tag_slug": "f1",
+        "active": "true",
+        "closed": "false",
+        "limit": "100"
+      },
+      "max_pages": 3,
+      "include_terms": [],
+      "exclude_terms": [],
+      "limit_per_type": 100,
+      "collect_outcomes": [
+        "yes",
+        "no"
+      ],
+      "group_by": "event_slug"
+    },
+    {
+      "name": "sports_golf",
+      "query": "golf",
+      "search_mode": "gamma_events",
+      "active": true,
+      "gamma_params": {
+        "tag_slug": "golf",
+        "active": "true",
+        "closed": "false",
+        "limit": "100"
+      },
+      "max_pages": 3,
+      "include_terms": [],
+      "exclude_terms": [],
+      "limit_per_type": 100,
+      "collect_outcomes": [
+        "yes",
+        "no"
+      ],
+      "group_by": "event_slug"
+    },
+    {
+      "name": "sports_boxing",
+      "query": "boxing",
+      "search_mode": "gamma_events",
+      "active": true,
+      "gamma_params": {
+        "tag_slug": "boxing",
+        "active": "true",
+        "closed": "false",
+        "limit": "100"
+      },
+      "max_pages": 3,
+      "include_terms": [],
+      "exclude_terms": [],
+      "limit_per_type": 100,
+      "collect_outcomes": [
+        "yes",
+        "no"
+      ],
+      "group_by": "event_slug"
+    },
+    {
+      "name": "sports_esports",
+      "query": "esports",
+      "search_mode": "gamma_events",
+      "active": true,
+      "gamma_params": {
+        "tag_slug": "esports",
+        "active": "true",
+        "closed": "false",
+        "limit": "100"
+      },
+      "max_pages": 3,
+      "include_terms": [],
+      "exclude_terms": [],
+      "limit_per_type": 100,
+      "collect_outcomes": [
+        "yes",
+        "no"
+      ],
+      "group_by": "event_slug"
+    },
+    {
+      "name": "sports_chess",
+      "query": "chess",
+      "search_mode": "gamma_events",
+      "active": true,
+      "gamma_params": {
+        "tag_slug": "chess",
+        "active": "true",
+        "closed": "false",
+        "limit": "100"
+      },
+      "max_pages": 3,
+      "include_terms": [],
+      "exclude_terms": [],
+      "limit_per_type": 100,
+      "collect_outcomes": [
+        "yes",
+        "no"
+      ],
+      "group_by": "event_slug"
+    },
+    {
+      "name": "sports_pop_culture",
+      "query": "pop culture",
+      "search_mode": "gamma_events",
+      "active": true,
+      "gamma_params": {
+        "tag_slug": "pop-culture",
+        "active": "true",
+        "closed": "false",
+        "limit": "100"
+      },
+      "max_pages": 3,
+      "include_terms": [],
+      "exclude_terms": [],
+      "limit_per_type": 100,
+      "collect_outcomes": [
+        "yes",
+        "no"
+      ],
+      "group_by": "event_slug"
+    },
+    {
+      "name": "sports_olympics",
+      "query": "olympics",
+      "search_mode": "gamma_events",
+      "active": true,
+      "gamma_params": {
+        "tag_slug": "olympics",
+        "active": "true",
+        "closed": "false",
+        "limit": "100"
+      },
+      "max_pages": 3,
+      "include_terms": [],
+      "exclude_terms": [],
+      "limit_per_type": 100,
+      "collect_outcomes": [
+        "yes",
+        "no"
+      ],
+      "group_by": "event_slug"
+    },
+    {
+      "name": "sports_racing",
+      "query": "racing",
+      "search_mode": "gamma_events",
+      "active": true,
+      "gamma_params": {
+        "tag_slug": "racing",
+        "active": "true",
+        "closed": "false",
+        "limit": "100"
+      },
+      "max_pages": 3,
+      "include_terms": [],
+      "exclude_terms": [],
+      "limit_per_type": 100,
+      "collect_outcomes": [
+        "yes",
+        "no"
+      ],
+      "group_by": "event_slug"
     }
   ]
 }
