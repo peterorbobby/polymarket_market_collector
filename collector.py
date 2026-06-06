@@ -24,6 +24,7 @@ DEFAULT_DATA_DIR = "data"
 DEFAULT_GAMMA_BASE_URL = "https://gamma-api.polymarket.com"
 DEFAULT_CLOB_BASE_URL = "https://clob.polymarket.com"
 DEFAULT_TIMEOUT_SECONDS = 20.0
+DEFAULT_RETENTION_DAYS = 7
 
 
 def utc_now() -> datetime:
@@ -235,6 +236,7 @@ class PolymarketCollector:
         self.skip_untradable_orderbooks = coerce_bool(config.get("skip_untradable_orderbooks"), True)
         self.data_dir = Path(data_dir_override or os.environ.get("POLY_COLLECTOR_DATA_DIR") or config.get("data_dir") or DEFAULT_DATA_DIR)
         self.state_dir = Path(config.get("state_dir") or "state")
+        self.retention_days = int(config.get("retention_days") or DEFAULT_RETENTION_DAYS)
         self.subjects = [SubjectConfig.from_dict(item) for item in list(config.get("subjects") or [])]
         if not self.subjects:
             raise ValueError("config must contain at least one subject")
@@ -645,7 +647,7 @@ class PolymarketCollector:
                 try:
                     file_date = datetime(int(match.group(1)), int(match.group(2)), int(match.group(3)), tzinfo=timezone.utc).date()
                     age_days = (current_date - file_date).days
-                    if age_days > 3:
+                    if age_days > self.retention_days:
                         path.unlink()
                         deleted_count += 1
                         print(f"[cleanup] Deleted old data file: {path.relative_to(self.data_dir)} ({age_days} days old)", flush=True)
